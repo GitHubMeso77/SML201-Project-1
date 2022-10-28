@@ -446,17 +446,3 @@ sort(WI_perc('Nigeria'))
 WI_perc('Nigeria')
 
 ggplot(DataSeries2, aes(x=Year, y=WI)) + geom_line()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
