@@ -1,0 +1,462 @@
+---
+title: 'Project 1: What drives Nation Happiness?'
+author: "Mesonma Alexis Anwasi, Destiny Turner"
+date: "2/19/22"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align="center", fig.height=4.5, fig.width=8, collapse=T, comment="", prompt=F, echo = T, cache=T, autodep=T, tidy=T, warning = F, message = F, tidy.opts=list(width.cutoff=63), dev='png')
+options(width=63)
+```
+
+# General Instructions
+
+**Project 1 is due by 11:59 pm EST on Monday, February 21.** Please submit both a .Rmd and a .pdf file on Gradescope by the deadline.
+
+**Please do not email your work to any of the instructors in any case** (unless you have no access to Gradescope at the time when the assignment is due--in this case please email the grader both copies of your .pdf and .rmd files before the deadline and upload the unaltered copies of the files to Gradescope as soon as you regain access to Gradescope).  We need your files to be on Gradescope to grade them. Thus, even if you are late, please still submit the files on Gradescope.
+
+This project can be completed in groups of up to 3 students. Feel free to use Ed Discussion *Search for Teammates* post to recruit team members.  It is okay to work by yourself, if this is preferable.   You are welcome to get help (you can either ask questions on Ed Discussion or talk to instructors in person during office hours) from instructors; however, please do not post code/solutions on Ed Discussion on a public post.  
+
+
+For **projects** you may not work with a given student on more than two project. For example, if you work with student A on Project 1 and 2, then you cannot work with student A on any other projects. 
+
+
+When working in a group it is your responsibility to make sure that you are satisfied with all parts of the report and the submission is on time (e.g., we will not entertain arguments that deficiencies are the responsibility of other group members).  We expect that each of you work independently first and then compare your answers with each other once you all finish, or help each other if someone in your group gets stuck.  Failing to make contributions and then putting your name on a report will be considered a violation of the honor code.  **Please do not divide work among group mates.**  Everyone in your group is responsible for being able to explain the solutions in the report.
+
+For all parts of this problem set, you **MUST** use R commands to print the output as part of your R Markdown file. You are not permitted to find the answer in the R console and then copy and paste the answer into this document. Except stated otherwise, all plots must be done using the `ggplot2` package. They should be properly labeled with title and legend if applicable. It is your responsibility to make the scales and any other supplemental annotation clearly visible with no further processing.
+
+**If you are completing this problem set in a group**, please have only **one** person in your group turn in the .Rmd and .pdf files; if you are not sure about how to make a group submission please see the video posted on Canvas.
+
+
+----
+
+Please type your name(s) after "Digitally signed:" below the honor pledge to serve as digital signature(s).  Put the pledge and your signature(s) at the beginning of each document that you turn in.
+
+> I pledge my honor that I have not violated the honor code when completing this assignment.
+
+Digitally signed: Mesonma Alexis Anwasi, Destiny Turner
+
+----
+
+# The Motivation^[Text extracted and adapted from the 2020 World Happiness Report .]
+
+
+The most famous macroeconomic indicators -- Gross Domestic Product (GDP), household income and unemployment -- focus on the rational side of what people do: what they spend, how much they make and whether they have a job. Traditional metrics like these do not tell us anything about people's happiness.
+
+Leaders can no longer assume that the lives of those in their countries improve with a rise in GDP, as was shown in the Arab countries where GDP was increasing but residents' ratings of their lives trended downward ahead of the uprisings.
+
+Leaders need more inclusive metrics to effectively track and lead the progress of their nation. The World Happiness Report is the first report to rank countries by how their populations feel.
+
+
+> "Happiness can change, and does change, according to the quality of the society in which people live."
+> John F. Helliwell is one of the chief editors of the World Happiness Report. Helliwell is a senior fellow at the Canadian Institute for Advanced Research and professor emeritus at the University of British Columbia.
+
+
+# About the Dataset^[Text extracted and adapted from https://www.kaggle.com/ .]
+
+The World Happiness Report is a landmark survey of the state of global happiness that ranks 156 countries by how happy their citizens perceive themselves to be.
+
+The happiness scores use data from the Gallup World Poll https://www.gallup.com/analytics/247355/gallup-world-happiness-report.aspx. The scores are based on answers to the main life evaluation question asked in the poll. This question, known as the Cantril ladder, asks respondents to think of a ladder with the best possible life for them being a 10 and the worst possible life being a 0 and to rate their own current lives on that scale. The scores are from nationally representative samples for the years 2015-2020 and use the Gallup weights to make the estimates representative. 
+
+
+# Objective
+
+To investigate the extent to which each of the six variables included in the dataset – economic production, social support, life expectancy, freedom, absence of corruption, and generosity – contribute to making life evaluations higher in each country.
+
+# Questions
+
+## Question 1: Load and Tidy up Data (2 pts)
+
+Load the 2019 Gallup World Poll dataset  (2019.csv file attached) using the `read_csv` function from the `readr` package. 
+
+```{r}
+setwd('/Users/meso_alexis/SML201/SML201_2022Spring')
+library(readr)
+library(tidyverse)
+`2019-1.csv`<- read_csv("data/2019-1.csv")
+`2019-1.csv`
+```
+
+Check that variable names are too long and contain spaces.
+
+```{r}
+names(`2019-1.csv`)
+```
+
+
+For convenience let's rename the variables using the function `rename` from the package `dplyr` to something shorter with *no spaces*. The syntax is the following: (do not forget to remove the `eval = FALSE` from the chunk below)
+```{r}
+library(dplyr)
+happinessdata = `2019-1.csv` %>%
+  rename(Rank = 'Overall rank',
+         Country = 'Country or region',
+         Happiness = 'Score',
+         GDP = 'GDP per capita',
+         Support = 'Social support',
+         Life = 'Healthy life expectancy',
+         Freedom = 'Freedom to make life choices',
+         Corruption = 'Perceptions of corruption'
+        )
+```
+
+Check whether the columns of the dataset were correctly re-labeled.
+
+```{r}
+happinessdata
+```
+
+
+## Question 2: First Impressions
+
+### Part (a) (3 pts)
+
+Make a histogram of the Happiness index `Happiness` using `ggplot2` package. You must choose the appropriate number of bins, the bars should be blue with white outline. In the same plot show the density line. Make sure that the areas of the bins represent proportions and the histogram is properly labeled.
+
+```{r}
+library(ggplot2)
+ggplot(happinessdata, aes(x=Happiness, y=..density..)) + geom_histogram(bins=50, 
+      color='white', fill='blue') +
+  geom_density() +
+  labs(y='Frequency', title='Histogram of the Happiness Index')
+```
+
+### Part (b) (4 pts)
+
+Make a boxplot for each of the variables in the dataset **except** `Rank` `country` and `Happiness`. All the box-plots must be in the same figure and the x-axis must contain the name of each variable. *Hint: You might find useful to transform the data first using the `pivot_longer` function from the `tidyr` package*.
+
+```{r}
+library(tidyr)
+happinessdata_longer <- happinessdata %>% select(GDP, Support, Life, Freedom, 
+  Generosity, Corruption) %>% pivot_longer(cols=c(GDP, Support, Life, Freedom, 
+  Generosity, Corruption), names_to='HappinessDataNames', 
+  values_to='HappinessValues')
+
+ggplot(happinessdata_longer, aes(x=HappinessDataNames, y=HappinessValues)) +
+  geom_boxplot(mapping=aes(fill=HappinessDataNames), show.legend=FALSE) +
+  labs(x='Happiness Variables', y='Scores', 
+      title='Boxplots of Happiness Variables')
+```
+
+### Part (c) (3 pts)
+
+Based on (2.b) plot, answer the following question: Which variables have the highest and lowest spread?  Report a statistic to justify your answer.
+
+```{r}
+var(happinessdata$Corruption)
+var(happinessdata$Freedom)
+var(happinessdata$GDP)
+var(happinessdata$Generosity)
+var(happinessdata$Life)
+var(happinessdata$Support)
+```
+
+The variable with the highest spread is GDP because it has the highest variance (the highest difference between its two farthest points).
+The variable witht he lowest spread is Corruption because it has the lowest variance (the lowest difference between its two farthest points)
+
+## Question 3: Identify the Outliers
+
+### Part (a) (10 pts)
+
+Create a function called `find_outliers` whose input is a numerical vector and the output is a logical vector of the same size of the input with `TRUE` if the observation is an outlier, and `FALSE` otherwise.
+
+```{r}
+
+find_outliers = function(x) {
+Q1 <- quantile(x, 0.25)
+Q2 <- quantile(x, 0.75)
+IQR = IQR(x)
+cutoff1 = Q1-1.5*IQR   
+cutoff2 = Q2+1.5*IQR
+  return(x < cutoff1 | x > cutoff2)
+}
+
+x = rt(50, 1)
+find_outliers(x)
+```
+
+
+### Part (b) (5 pts)
+
+Use the function you created in Part a), `find_outliers`, to identify the outlier Countries for each of variables: `Corruption`, `Freedom` and `Happiness`.
+
+```{r}
+happinessdata %>% mutate(corr_outlier=find_outliers(Corruption)) %>%
+  filter(corr_outlier == TRUE)
+
+happinessdata %>% mutate(corr_outlier=find_outliers(Freedom)) %>%
+  filter(corr_outlier == TRUE)
+
+happinessdata %>% mutate(corr_outlier=find_outliers(Happiness)) %>%
+  filter(corr_outlier == TRUE)
+```
+
+
+### Part (c) (10 pts)
+
+Modify `find_outliers` to create the function `find_outliers_direction` whose input is the same as `find_outliers`, whereas the output is a numeric vector of the same length of the input,  with entry 1 if the observation is an "upper outlier"; -1  is a "lower outlier";  and 0 otherwise.
+
+```{r}
+find_outliers_direction=function(x){
+  quantile_1 <- quantile(x, p=0.25)
+  quantile_2 <- quantile(x, p=0.75)
+  IQR<-IQR(x)
+  endpoint_1<-quantile_1 - 1.5*IQR
+  endpoint_2<-quantile_2 + 1.5*IQR
+  return(x<endpoint_1|x>endpoint_2)}
+```
+
+
+### Part (d) (6 pts)
+
+Use the function you created in Part c), `find_outliers_direction`, to identify the outlier Countries for each of the variables: `Generosity`, `Life` and `Support`.
+
+```{r}
+happinessdata %>% mutate(corr_outlier=find_outliers_direction(Generosity)) %>%
+  filter(corr_outlier == TRUE)
+
+happinessdata %>% mutate(corr_outlier=find_outliers_direction(Life)) %>%
+  filter(corr_outlier == TRUE)
+
+happinessdata %>% mutate(corr_outlier=find_outliers_direction(Support)) %>%
+  filter(corr_outlier == TRUE)
+```
+
+
+## Question 4: The wealth influence
+
+### Part (a) (5 pts)
+
+Include in the dataset a new variable called `Wealth` that should read:
+
+* 'poor' if country GDP is below or equal to the first quartile
+* 'middle' country GDP is above the first quartile and below or equal to the third quartile
+* 'rich' if the country GDP is above the third quartile
+
+```{r}
+happinessdatawealth <- happinessdata %>%
+  mutate(Wealth=case_when(happinessdata$GDP <= 
+  quantile(happinessdata$GDP, p=.25) ~ 'poor', happinessdata$GDP >  
+  quantile(happinessdata$GDP, p=.25) & happinessdata$GDP <= 
+  quantile(happinessdata$GDP, p=.75) ~ 'middle', happinessdata$GDP > 
+  quantile(happinessdata$GDP, p=.75) ~ 'rich'))
+
+happinessdatawealth
+```
+
+### Part (b) (4 pts)
+
+Calculate the median and the IQR for happiness for each level of wealth.
+
+```{r}
+richcountry <- happinessdatawealth %>%
+  filter(Wealth == 'rich')
+median(richcountry$Happiness)
+IQR(richcountry$Happiness)
+
+middlecountry <- happinessdatawealth %>%
+  filter(Wealth == 'middle')
+median(middlecountry$Happiness)
+IQR(middlecountry$Happiness)
+
+poorcountry <- happinessdatawealth %>%
+  filter(Wealth == 'poor')
+median(poorcountry$Happiness)
+IQR(poorcountry$Happiness)
+```
+
+### Part (c) (4 pts)
+
+Make a scatterplot of Happiness vs. GDP colored be the `Wealth` level. Do not forget to properly label and include a legend to your plot.
+
+```{r}
+library(ggplot2)
+ggplot(happinessdatawealth, aes(x=Happiness, y=GDP, color=Wealth)) + 
+geom_point() + labs(x='Happiness Level', y='GDP', 
+title='Happiness Based on GDP')
+```
+
+### Part (d) (2 pts)
+
+Based on your answers above, what do you conclude about the relation between `Wealth` and `Happiness`?
+
+```{asis}
+**Answer: Based on the scatter plot, it can be stated that there is a positive correlation between wealth and happiness. None of the poor countries have a happiness level higher than 5.5, while the middle countries have a happiness level that goes up to ~ 7.1, and finally the rich countries get up to ~ 7.8 on the happiness scale. **
+```
+
+## Question 5: Going beyond wealth
+
+We will now investigate what matters to happiness beyond the `Wealth` level. In particular, we will explore the impact of `Freedom` on `Happiness` for a given level of `Wealth`. 
+
+### Part (a) (2 pts)
+
+For that, let's create a new variable called `Freedom_cat` that should read:
+
+* 'low' if country's `Freedom` is below or equal to the first quartile
+* 'medium' if the country's `Freedom` is above the first quartile and below or equal to the third quartile
+* 'high' if the country's `Freedom` is above the third quartile
+
+```{r}
+freedomhappiness <- happinessdata %>% 
+mutate(Freedom_cat=case_when(happinessdata$Freedom <= 
+quantile(happinessdata$Freedom, p=.25) ~ 'low', happinessdata$Freedom >  
+quantile(happinessdata$Freedom, p=.25) & happinessdata$Freedom <= 
+quantile(happinessdata$Freedom, p=.75) ~ 'medium', happinessdata$Freedom > 
+quantile(happinessdata$Freedom, p=.75) ~ 'high'))
+```
+
+### Part (b) (5 pts)
+
+Plot three histograms of `Happiness` in same figure, one for each level of `Wealth`. Each histogram should be colored (filled) by a different Freedom level, and each Freedom level histogram must "add-up-to-one".
+
+```{r}
+ggplot(happinessdata) + 
+  geom_histogram(aes(x=Happiness, y=..density.., 
+                     fill=as.factor(freedomhappiness$Freedom_cat)), position='identity', bins=26, 
+alpha=0.5) + facet_grid(as.factor(happinessdatawealth$Wealth)) + 
+labs(y='Density', title='Happiness Levels of Rich, Middle, and Poor Countries, 
+with Respect to Freedom Level', fill='Freedom Level')
+
+freedomhappiness
+
+# fix this graph if you can
+```
+
+### Part (c) (3 pts)
+
+Based on the plot above, would you say that influence of `Freedom` on `Happiness` is independent of the `Wealth` level?
+
+```{asis}
+**Answer: The influence of freedom on happiness is not independent of the 'Wealth' level because there is no correlation or trend between Freedom and Happiness. Therefore, the 'Wealth' level has an influence on the Happiness, since we know that richer countries are happier.** 
+```
+
+## Question 6: Time evolution
+
+For this question we will use a different dataset. Load the dataset `data_series.csv`:
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+setwd('/Users/meso_alexis/SML201/SML201_2022Spring')
+'DataSeries' <- read_csv(file = 'data/data_series.csv')
+DataSeries
+```
+
+
+### Part (a) (3 pts)
+
+List the name of the variable in the dataset. How many distinct countries (`Geography`) do we have in the dataset?
+
+The name of the variables in the dataset are 'Geography', 'Year', 'Thriving', 'Struggling', 'Suffering', 'N'
+
+```{r}
+unique(DataSeries$Geography)
+```
+
+There are 168 distinct countries in the dataset.
+
+### Part (b) (7 pts)
+
+How many years of data do we have for each county? How many countries have the maximum number of years? List the countries with only data for a single year?
+
+Years of Data for each country:
+```{r}
+DS<- DataSeries %>% count(Geography)
+DS
+```
+
+There are 50 countries with the maximum number of years (16):
+```{r}
+max(table(DataSeries$Geography))
+
+DataSeries %>% count(Geography) %>% filter(n==16)
+```
+
+Countries with only data for a single year
+```{r}
+DataSeries %>% count(Geography) %>% filter(n==1)
+```
+
+
+The variables `Thriving`,`Struggling`, and `Suffering` in the dataset correspond to the proportion of the respondents who consider themselves "Thriving","Struggling" or "Suffering" when asked about their current well-being. We are going to use these variables to construct a well-being index, which we call `WI`,  for for each `Geography` at each `Year`.
+
+### Part (c) (2 pts)
+
+Include `WI` in dataset as being 100 times `Thriving` plus 30 times `Struggling` plus 5 times `Suffering`.
+
+```{r}
+DataSeries2 <- mutate(DataSeries, WI=100*DataSeries$Thriving + 
+                        30*DataSeries$Struggling + 5*DataSeries$Suffering)
+DataSeries2
+```
+
+
+### Part (d) (3 pts)
+
+Create the percentage change function called `per_chg`.
+The function must receive a numeric vector `x` and returns a single value being the percentage change from the last entry to first entry of `x`. For instance, if the input vector is $x = (1,2,1.5,-0.5,-0.4)$, the output vector should be $(1 -(-0.4))/(-0.4)*100 = -350$.
+
+```{r}
+per_chg=function(x){(head(x, n=1)-tail(x, n=1))/(tail(x, n=1))*100}
+x <- c(1,2,1.5,-0.5,-0.4)
+per_chg(x)
+```
+
+
+### Part (e) (5 pts)
+
+Use `per_chg` to calculate the percentage change in `WI` between the first and the last `Year` for each `Geography` in the dataset.
+
+```{r}
+WI_perc=function(country){
+  DataSeries2 %>%
+    filter(Geography==country) %>%
+    summarize(as.vector(WI)) %>%
+    per_chg()}
+```
+
+### Part (f) (12 pts)
+
+Make a line plot of `WI` vs. `Year` for the top-5 countries in terms of `WI_perc` among those which have the maximum number of years (recall Part(b)).
+
+This is our code for 'f', but it didn't knit because we didn't finish:
+
+series_WI<-DataSeries2 %>% count(Geography) %>% filter(n==16)
+
+DataSeries2 %>% mutate(WI_perc2=WI_perc(country)) %>%
+  filter(WI_perc2 == TRUE)
+
+full_range = DataSeries2 %>%
+  filter(N == (N, na.rm=TRUE)) %>%
+  print(DataSeries2$Geography)
+
+top5 = series_WI %>%
+  filter(Geography %in% full_range) %>%
+  slice_max(WI_perc(), n = 5) %>%
+  pull(Geography)
+
+ggplot(DataSeries2) %>%
+         filter(WI_perc %in% Year) + geom_line(aes(x = Year, y = WI, color = DataSeries2$Geography))
+
+head(sort(WI_perc('Nigeria'),decreasing=TRUE), n = 5)
+sort(WI_perc('Nigeria'))
+WI_perc('Nigeria')
+
+ggplot(DataSeries2, aes(x=Year, y=WI)) + geom_line()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
