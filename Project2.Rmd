@@ -1,0 +1,416 @@
+---
+title: "SML201 - Project 2: Forecasting House Prices"
+author: 'Mesonma Alexis Anwasi'
+date: 'March 17, 2022'
+output:
+  pdf_document:
+    fig_caption: yes
+  html_document:
+    df_print: paged
+geometry: margin=1in
+fontsize: 10pt
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align="center", fig.height=4.5, fig.width=8, collapse=T, comment="", prompt=F, echo = T, cache=F, autodep=T, tidy=F, tidy.opts=list(width.cutoff=63), dev='png', message = F, warning = F)
+options(width=63)
+```
+
+# General Instructions
+
+**Project 2 is due by 10:00 pm EST on Friday, March 18.** Please submit both a .Rmd and a .pdf file on Gradescope by the deadline.
+
+**Please do not email your work to any of the instructors in any case** (unless you have no access to Gradescope at the time when the assignment is due--in this case please email the grader both copies of your .pdf and .rmd files before the deadline and upload the unaltered copies of the files to Gradescope as soon as you regain access to Gradescope).  We need your files to be on Gradescope to grade them. Thus, even if you are late, please still submit the files on Gradescope.
+
+This project can be completed in groups of up to 3 students. Feel free to use Ed Discussion *Search for Teammates* post to recruit team members.  It is okay to work by yourself, if this is preferable.   You are welcome to get help (you can either ask questions on Ed Discussion or talk to instructors in person during office hours) from instructors; however, please do not post code/solutions on Ed Discussion on a public post.  
+
+
+For **projects** you may not work with a given student on more than two project. For example, if you work with student A on Project 1 and 2, then you cannot work with student A on any other projects. 
+
+
+When working in a group it is your responsibility to make sure that you are satisfied with all parts of the report and the submission is on time (e.g., we will not entertain arguments that deficiencies are the responsibility of other group members).  We expect that each of you work independently first and then compare your answers with each other once you all finish, or help each other if someone in your group gets stuck.  Failing to make contributions and then putting your name on a report will be considered a violation of the honor code.  **Please do not divide work among group mates.**  Everyone in your group is responsible for being able to explain the solutions in the report.
+
+For all parts of this problem set, you **MUST** use R commands to print the output as part of your R Markdown file. You are not permitted to find the answer in the R console and then copy and paste the answer into this document. Except stated otherwise, all plots must be done using the `ggplot2` package. They should be properly labeled with title and legend if applicable. It is your responsibility to make the scales and any other supplemental annotation clearly visible with no further processing.
+
+**If you are completing this problem set in a group**, please have only **one** person in your group turn in the .Rmd and .pdf files; if you are not sure about how to make a group submission please see the video posted on Canvas.
+
+
+----
+
+Please type your name(s) after "Digitally signed:" below the honor pledge to serve as digital signature(s).  Put the pledge and your signature(s) at the beginning of each document that you turn in.
+
+> I pledge my honor that I have not violated the honor code when completing this assignment.
+
+Digitally signed: Mesonma Alexis Anwasi
+
+----
+
+# Objectives
+
+The aim of this problem set is to propose a linear regression model to predict house sales price based on its features that can be incorporated into a function that could be used by a real-estate agent.
+
+# Background Information ^[Extracted from Wikipedia]
+
+Ames is a city in Story County, Iowa, United States, located approximately 30 miles (48 km) north of Des Moines in central Iowa. It is best known as the home of Iowa State University (ISU), with leading agriculture, design, engineering, and veterinary medicine colleges. A United States Department of Energy national laboratory, Ames Laboratory, is located on the ISU campus.
+
+In 2019, Ames had a population of 66,258. Iowa State University was home to 33,391 students as of fall 2019, which make up approximately one half of the city's population.
+
+Ames also hosts United States Department of Agriculture (USDA) sites: the largest federal animal disease center in the United States, USDA's Agricultural Research Service's National Animal Disease Center (NADC)., as well as, one of two national USDA sites for the Animal and Plant Health Inspection Service (APHIS), which comprises the National Veterinary Services Laboratory and the Center for Veterinary Biologics. Ames has the headquarters for the Iowa Department of Transportation.
+
+In 2010, Ames was ranked ninth on CNNMoney's *Best Places to Live* list. 
+
+# Dataset
+
+The dataset (`train.csv`) consists of the sales price of 1,460 houses with 80 explanatory variables describing (almost) every aspect of residential homes in Ames. You will find the description of each variable in the dataset in `data_description.txt`.
+
+
+
+
+## Problem 1: Preliminary EDA (5 pts)
+
+Start by loading the `train.csv` file to RStudio.
+
+```{r}
+library(readr)
+data_raw = read_csv('/Users/meso_alexis/SML201/SML201_2022Spring/data/train.csv')
+```
+
+Check the dimension of the dataset 
+
+```{r}
+dim(data_raw)
+```
+
+
+We are going to extract (and rename) only the relevant variables for our prediction exercise. You will find more information about the variables in the `data_description.txt` file. Run
+
+```{r}
+library(dplyr)
+data = data_raw %>%
+  select(Price = SalePrice,
+         Lot = LotArea,
+         Size = GrLivArea,
+         Garage = GarageCars,
+         Bedroom = BedroomAbvGr,
+         Year = YearBuilt,
+         Condition = OverallCond)
+```
+
+Print the first few entries of the dataset to double check whether you have all the columns you are suppose to.
+```{r}
+head(data, 10)
+```
+
+
+Let's start by having a quick look at the distribution of our target variable (`Price`). Make a histogram (showing proportion) of `Price` in thousands of USD.
+
+```{r}
+library(ggplot2)
+ggplot(data, aes(x=Price/1000, y=..density..)) + geom_histogram(binwidth=15) +
+  labs(x='Price in Thousands', y='Proportion')
+```
+
+What is the median house price in Ames?
+
+```{r}
+median(data$Price)
+```
+
+The median house price in Ames is $163,000
+
+
+## Problem 2: Investigate the relationship between some variables (21 pts)
+
+Before building a linear model, it is important to investigate the relationship between the Y- and the potential X- variables in the model, since one of the assumptions of a linear model is the linearity between the dependent and independent variables. 
+
+### Part (a) (3 pts)
+
+Make sure that the variables in `data` are in the correct data types. If not, you should convert them into the correct data types. *Hint: Keep `Year` as a continuous random variable since, otherwise, there would be 100+ levels.*
+
+```{r}
+data$Garage = as.factor(data$Garage)
+data$Bedroom = as.factor(data$Bedroom)
+data$Condition = as.factor(data$Condition)
+data
+```
+
+
+### Part (b) (4 pts)
+
+Make a scatterplot of `Price` in thousands of USD v.s. `Size`.  Do the two variables have a linear relationship? You just need to look at your graph to answer this question.
+```{r}
+ggplot(data, aes(x=Size, y=Price/1000)) + geom_point() + labs(x='Size', y='Price in
+Thousands')
+```
+
+Yes, the two variables have a linear relationship.
+
+### Part (c) (4 pts)
+
+Based on your scatterplot in Part (b) and without doing any calculations, choose the correct answer for this question:  The correlation between the two variables `Price` and `Size` should be
+(A.) Negative, (B.) Positive, (C.) Approximately zero or (D.) Cannot be determined without any calculations. Explain your reasoning. 
+
+```{r}
+
+```
+B. Positive. This is because as Size increase, Price also increases.
+
+### Part (d) (10 pts)
+
+Make a new scatterplot by modifying your scatterplot in Part (b) to answer this question:  Is the relationship between `Price` and `Size`, linear within each `Garage` category?  You must answer the  question by just looking  at your graph.
+
+```{r}
+ggplot(data, aes(x=Size, y=Price/1000)) + geom_point() + facet_grid(rows = 
+                        vars(Garage)) + labs(x='Size', y='Price in Thousands')
+
+```
+
+Yes.
+
+## Problem 3: Fitting a linear model (42 pts)
+
+### Part (a) (4 pts)
+
+Which *continuous* variable has the strongest linear relationship with `Price`? Justify your answer. 
+
+```{r}
+library(GGally)
+ggpairs(data)
+```
+
+Size is the continuous variable that has the strongest linear relationship with 
+Price because the correlation coefficient is 0.709, which is the closer to 1 
+compared to 0.264 and 0.523, which are Price's correlation coefficients with 
+other variables.
+
+### Part (b) (4 pts)
+
+Write down the mathematical formula for the *simple* linear model suggested by your answer to part (a)
+
+$$Price_i =\beta_{0}+\beta_{Size}Size_i+error_{i}$$
+```{r}
+```
+
+### Part (c) (5 pts)
+
+Estimate Part (b) model and report the value of the estimated coefficients and $R^2$. Give the precise interpretation of those estimated coefficients.
+
+```{r}
+pricexsize = lm(formula = Price ~ Size, data = data)
+
+summary(pricexsize)
+```
+The estimated coefficient of this model for Size is 0.107130. This value can be
+interpreted as "for every square foot increase in Size, the Price increases by 
+~ $107.13".
+
+The (Adjusted) R^2 value is: 0.5018
+
+### Part (d) (4 pts)
+Which *categorical* variable seems to have  the strongest relationship with `Price`? Justify your answer. 
+
+```{r}
+ggpairs(data)
+```
+
+The categorical variable with the strongest relationship with 'Price' is 
+'Garage'. This is because, based on the histograms for the 3 categorical
+variables 'Garage', 'Bedroom', and 'Year', 'Garage' correlates positively with
+higher peaks throughout ~ half of its graph, compared to 'Bedroom' and 'Year'
+with small peaks and all based around the x-axis.
+
+### Part (e) (4 pts)
+
+Write the mathematical formula given in Part (b) *augmented* by the categorical variable chosen in part (d).
+
+$$Price_i =\beta_{0}+\beta_{1Garage}1_{Garage,i}+\beta_{Size}Size_i$$
+```{r}
+```
+
+### Part (f) (5 pts)
+
+Estimate part (e) linear model and report the value of the estimated coefficients and $R^2$. Give the exact interpretation of the coefficients of the included categorical variable.
+
+```{r}
+summary(lm(Price ~ Garage, data = data))
+```
+Estimated Coefficients:
+Garage1: 24799. This means for each garage with a one-car capacity, the 
+price will increase by $24,799
+
+Garage2: 80534. This means for each garage with a two-car capacity, the 
+price will increase by $80,534
+
+Garage3: 206319. This means for each garage with a three-car capacity, 
+the price will increase by $206,319
+
+Garage4: 89338. This means for each garage with a four-car capacity, the 
+price will increase by $89,338
+
+### Part (g) (4 pts)
+
+Make a scatterplot to help you answer the following question: Do you believe that the inclusion of interactions between the continuous and categorical variables will improve the prediction capabilities of your linear model?
+
+```{r}
+ggplot(data, aes(x=Size, y=Price/1000)) + geom_point() + facet_grid(rows = 
+                        vars(Garage)) + labs(x='Size', y='Price in Thousands')
+```
+
+Yes, because it provides more information to the model (the above gives 5 
+plots), whereas without the interactions between these continuous and
+categorical variables, we would only be able to observe a single scenario. More 
+information helps the linear model predict better.
+
+### Part (h) (4 pts)
+
+Write the mathematical formula for the liner model of Part (e) *including* all the interaction terms of the continuous and categorical variables.
+
+
+$$\begin{align*}
+Price_i =& \beta_{0} + \beta_{1Garage}1_{Garage,i} \\
+& + \beta_{2Garage}1_{Garage,i} + \beta_{Size}Size_i \\
+& + \beta_{(Size1_{Garage})}(size1_{Garage)i} + \beta_{3Garage}1_{Garage,i} \\
+& + \beta_{4Garage}1_{Garage,i} + error_{i}
+\end{align*}$$
+
+```{r}
+```
+
+### Part (i) (4 pts)
+
+Estimate part (h) linear model and report the value of the estimated coefficients and $R^2$. Give the exact interpretation of the interaction coefficients.
+
+```{r}
+summary(lm(Price ~ Size * Garage, data = data))
+```
+
+Estimated coefficients with interpretations: 
+Garage 1 = 14927.850. This means for each garage with a capacity of one car,
+the price increases by ~ $14,927.85
+
+Garage 2 = 25921.091. This means for each garage with a capacity of two cars,
+the price increases by ~ $25,921.09
+
+Garage 3 = 13321.347. This means for each garage with a capacity of three cars,
+the price increases by ~ $13,321.35
+
+Garage 4 = 44636.806. This means for each garage with a capacity of four cars,
+the price increases by ~ $44,636.81
+
+Size:Garage1 = 6.936. This means for each increase in square feet for a
+house with a garage with a one car capacity, the price will increase by $6.94
+
+Size:Garage 2 = 25.207. This means for each increase in square feet for a
+house with a garage with a two car capacity, the price will increase by $25.21
+
+Size:Garage 3 = 74.317. This means for each increase in square feet for a
+house with a garage with a three car capacity, the price will increase by 
+$74.32
+
+Size:Garage 4 = 9.747. This means for each increase in square feet for a
+house with a garage with a four car capacity, the price will increase by $9.75
+
+Size = 42.475.
+
+Adjusted R^2 = 0.6818
+
+### Part (j) (4 pts)
+
+Based on all previous answers, which model would you choose to predict house prices? Justify your answer based on the regression outputs.
+
+Based on the regression outputs, I would pick the last one:
+```{r}
+lm(Price ~ Size * Garage, data = data)
+```
+because it provides more specific information. There is quite a significant 
+difference in cost when purchasing a one car garage house and, say, a four car
+garage house, as shown in the regression output for this linear model ($14,928
+compared to $44,637), which is significant when predicting house prices. The
+regression outputs of the other linear models to not show this, as they are 
+much more general (based only on Size and if a Garage is present or not).
+
+## Problem 4 (32 pts)
+
+### Part (a) (5 pts)
+
+Estimate a new linear model to predict `Price` that contains all the variables in `data` (excluding 'Price' of course) as explanatory variables. Do not include interactions.
+
+```{r}
+summary(lm(Price ~ Size + Lot + Garage + Bedroom + Year + Condition, data = data))
+qfourmodel <- lm(Price ~ Size + Lot + Garage + Bedroom + Year + Condition, data = data)
+```
+
+
+### Part (b) (7 pts)
+
+Use the estimated model in Part (a) to predict the price of the following `new_house` in the market:
+
+```{r}
+new_house = data.frame(Size = 2000,
+                        Lot = 10000, 
+                        Year = 2015, 
+                        Garage = as.factor(0),
+                        Bedroom = as.factor(3), 
+                        Condition = as.factor(6))
+```
+
+```{r}
+predict.lm(qfourmodel, new_house)
+```
+
+Answer: $243,978.40
+
+*Hint: You can do the prediction manually (by multiplying and sum) or you may use the `predict.lm` function here. The syntax would be*
+
+```{r, eval = F}
+predict.lm(model, newdata)
+```
+
+*Type `?predict.lm` in the console for help and further information.*
+
+```{r}
+?predict.lm
+```
+
+
+### Part (c) (20 pts)
+
+Write a function called `house_price()` with 2 inputs:
+
+1. Data: A dataset with the same columns as `data_raw` (the original dataset before selecting the relevant variables);
+2. House: A dataframe with the following columns
+  + Size: A number;
+  + Lot: A number;
+  + Year: A number;
+  + Garage: An integer 0,1,2,3,4;
+  + Bedroom: An integer 0,1,2,...,8;
+  + Condition: An integer 1,2,...,9;
+  
+The output must be a single number (in USD with **no** decimals) giving the forecasted house price based on the part (a) model. 
+ 
+ 
+```{r}
+house_price = function(Data, House){predict.lm(lm(Price ~ Size + Lot + Garage + 
+Bedroom + Year + Condition, rename(data_raw, Price=SalePrice, Size=GrLivArea, 
+Lot=LotArea, Garage=GarageCars, Bedroom=BedroomAbvGr, Year=YearBuilt, 
+Condition=OverallCond), data_raw = Data), House)}
+```
+ 
+Test your function by predicting the price of the house below based on `data_raw`
+ 
+```{r}
+house_test = data.frame(Size = 1500,
+                        Lot = 10000, 
+                        Year = 1980, 
+                        Garage = 2,
+                        Bedroom = 3, 
+                        Condition = 5)
+```
+
+```{r}
+house_price(data_raw, house_test)
+```
+
+The predicted price of the house is $183,911.90
