@@ -1,0 +1,485 @@
+---
+title: 'Project 3: How large (normal) is large (normal) enough?'
+subtitle: 'A Monte Carlo Study to Evaluate Confidence Interval Procedures'
+author: "Mesonma Alexis Anwasi"
+date: "April 13, 2022"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.align="center", fig.height=4.5, fig.width=8, collapse=T, comment="", prompt=F, echo = T, cache=T, autodep=T, tidy=T, warning = F, message = F, tidy.opts=list(width.cutoff=63), dev='png')
+options(width=63)
+```
+
+# General Instructions
+
+**Project 3 is due by 11:59 pm EST on Thursday, April 14.** Please submit both .Rmd and .pdf files on Gradescope by the deadline.
+
+**Please do not email your work to any of the instructors in any case** (unless you have no access to Gradescope at the time when the assignment is due--in this case please email the grader both copies of your .pdf and .rmd files before the deadline and upload the unaltered copies of the files to Gradescope as soon as you regain access to Gradescope).  We need your files to be on Gradescope in order to grade them.  Thus, even if you are late, please still submit the files on Gradescope.
+
+This project can be completed in groups of up to 3 students. Feel free to use Ed Discussion *Search for Teammates* post to recruit team members.  It is okay to work by yourself, if this is preferable.   You are welcome to get help (you can either ask questions on Ed Discussion or talk to instructors in person during office hours) from instructors; however, please do not post code/solutions on Ed Discussion on a public post.  
+For **projects** you may not work with a given student  more than twice. For example, if you work with student A on Projects 1 and 2, then you cannot work with student A on any other project. 
+
+When working in a group it is your responsibility to make sure that you are satisfied with all parts of the report and the submission is on time (e.g., we will not entertain arguments that deficiencies are the responsibility of other group members).  We expect that each of you work independently first and then compare your answers with each other once you all finish, or help each other if someone in your group gets stuck.  Failing to make contributions and then putting your name on a report will be considered a violation of the honor code.  **Please do not divide work among group mates.**  Everyone in your group is responsible for being able to explain the solutions in the report.
+
+For all parts of this problem set, you **MUST** use R commands to print the output as part of your R Markdown file. You are not permitted to find the answer in the R console and then copy and paste the answer into this document. Except stated otherwise, all plots must be done using the `ggplot2` package. They should be properly labeled with title and legend if applicable. It is your responsibility to make the scales and any other supplemental annotation clearly visible with no further processing.
+
+**If you are completing this problem set in a group**, please have only **one** person in your group turn in the .Rmd and .pdf files; if you are not sure about how to make a group submission please see the video posted on Canvas.
+
+
+----
+
+Please type your name(s) after "Digitally signed:" below the honor pledge to serve as digital signature(s).  Put the pledge and your signature(s) at the beginning of each document that you turn in.
+
+> I pledge my honor that I have not violated the honor code when completing this assignment.
+
+Digitally signed: Mesonma Alexis Anwasi
+
+----
+
+# The Motivation
+
+
+We have studied 3 different methods to construct a confidence interval (CI) for the sample mean when the population standard deviation is unknown. Let $X_1,\dots, X_n$ be an i.i.d sample from a population with mean $\mu$ and standard deviation (SD) $\sigma$.
+
+## Case 1: Large Sample
+
+This method is based on the Central Limit Theorem (CLT) that says that as the sample size grows we have that the sample mean $\bar X_n = (X_1+\dots+X_n)/n$ is *approximately* normally distributed with mean $\mu$ and SD $\sigma/\sqrt{n}$. Or equivalently 
+\[\frac{\bar X - \mu}{s/\sqrt{n}}\approx N(0,1)\qquad \text{for large $n$}.\]
+In that case, a $1-\alpha$ CI for $\mu$ is given by 
+\[[\bar X_n - q(1-\alpha/2)s/\sqrt{n}, \bar X_n + q(1-\alpha/2)s/\sqrt{n}],\]
+where $s$ is the sample SD and $q(\alpha)$ denotes the $\alpha$-quantile of a standard normal distribution.
+
+
+
+## Case 2: Normal Population #starthere
+
+This method is based on the assumption that $X_i$ is a normally distributed random variable. Then the standardized mean follows a t-distribution with $n-1$ degrees of freedom (df) for every $n\geq 2$.
+\[\frac{\bar X - \mu}{s/\sqrt{n}}\sim t_{n-1}\qquad \text{for all  $n\geq 2$}.\]
+
+In that case, a $1-\alpha$ CI for $\mu$ is given by 
+\[[\bar X_n - c_{n-1}(1-\alpha/2)s/\sqrt{n}, \bar X_n + c_{n-1}(1-\alpha/2)s/\sqrt{n}],\]
+where $s$ is the sample SD and $c_{n}(\alpha)$ denotes the $\alpha$-quantile of a t-distribution with $n$ df.
+
+
+
+## Case 3: Bootstrap
+
+This method was based on the fact that by the Law of Large Numbers (LLN) the histogram of the sample gets closer to the (true) distribution of $X_i$ as the sample size increases. So we might treat our sample as the "population" and draw (bootstrap) samples *with replacement* from the original sample to construct a vector of deviation as 
+
+\[dev_j = \bar X_j^*  - \bar X_n,\quad j=1,\dots,k\]
+where $\bar X_j^*$ is the sample mean of the $j$-th bootstrap sample and $k$ is the number of bootstrap samples.
+
+In that case, a $1-\alpha$ CI for $\mu$ is given by 
+\[[\bar X_n - \delta(1-\alpha/2), \bar X_n - \delta(\alpha/2)],\]
+where $\delta(\alpha)$ denotes the $\alpha$-quantile of the vector $dev_1,dev_2,\dots, dev_k$.
+
+
+
+# Objective
+
+To shed some light on questions raised during lectures and precepts such as:
+
+> How large must be the sample for a good approximation? Is there a cut-off to indicate a large sample?
+
+> How  "normal" should my sample be for this result to hold with small sample? Is there a rule of thumb?
+
+> Does bootstrap always "work" ? Is it better than Case 1 in large sample? Is it better than Case 2 in small sample.
+
+Specifically, you will conduct a simple Monte Carlo study to better understand the properties of CI procedures using simulated data. In particular, we want to investigate for all 3 Cases:
+
+* The effect of the sample size
+* The effect of the distribution of the sample
+
+# Required package
+
+The only package you will need for the project is
+
+```{r}
+library(tidyverse)
+```
+
+which include `ggplot2`, `dplyr`,`tidyr`, `purrr` among others.
+
+## Question 1
+
+### Part (a) (10 pts)
+
+Create three functions called `CI1`,`CI2` and `CI3` that implement the CI according to the procedure described in Case 1, 2 and 3 respectively. The input of each of these functions must be:
+
+  * `data`: a numerical vector containing the sample
+  * `alpha`: the desired significance level (confidence level = $1-\alpha$):
+  * `n.boot`: the number of bootstrap sample (for CI3 only).
+  
+The output of each function must be a numerical vector of size 2 containing the lower bound and the upper bound (in that order) of the CI.
+
+```{r}
+CI1 = function(data, alpha){print(c(mean(data/length(data))-quantile(data, 1-(alpha/2))*sd(data)/sqrt(length(data)), mean(data/length(data))+quantile(data, 1-(alpha/2))*sd(data)/sqrt(length(data))))}
+ 
+CI2 = function(data, alpha){print(c(mean(data/length(data))-quantile(data, 1-
+(alpha/2), df=length(data)-1)*sd(data)/sqrt(length(data)), mean(data/length
+(data))+quantile(data, 1-(alpha/2), df=length(data)-1)*sd(data)/sqrt(length
+                                                      (data))))}
+
+CI3 = function(data, alpha,n.boot){print(c(mean(data/length(data))-quantile(mean
+                                                          (head(data,n.boot))/n.boot-mean(data/length(data)), 1-(alpha/2)),mean(data/length(data))-quantile(mean(head(data,n.boot))/n.boot-
+                                                                                                                                                mean(data/length(data)), alpha/2)))}
+```
+
+
+}Test your functions by reporting the CI for each of the 3 cases for the input
+```{r}
+set.seed(133)
+sample = runif(50)
+alpha = 0.05
+n.boot = 100
+```
+
+```{r}
+CI1(sample, alpha)
+CI2(sample, alpha)
+CI3(sample, alpha, n.boot)
+```
+
+### Part (b) (5 pts)
+
+Now, we need a function that tell us if the parameter of interest lies inside a given CI and also give us the length of the CI.
+
+For that, write an auxiliary function called `aux` that receives as an input `x` a numerical  vector of size 3  and returns a numerical vector `y` of size 2 where the first element of `y` must be  `1` if the first element of `x` lies between the last two inclusive and `0` otherwise; and the second element of `y` must be the difference between the third and second elements of `x`.
+
+```{r}
+aux = function(x){y=c(as.integer(as.logical(x[1]>=x[2] & x[1]<=x[3])), x[3]-x[2])
+return(y)}
+```
+
+Test your function with the triples below to check if it is working properly
+
+```{r}
+x1 = c(1,2,3)
+x2 = c(0.5,0,0.5)
+x3 = c(1,1,1)
+```
+
+```{r}
+aux(x1)
+aux(x2)
+aux(x3)
+```
+
+### Part (c) (10 pts)
+
+Use `CI1`, `CI2`,`CI3` and `aux` to write 3 functions called `core1`, `core2`,`core3`  that computes the CI, checks if it contains the mean of a `population` (parameter) and computes it length. Each function input must be
+
+  * `population`: a numerical vector containing the population
+  * `n`: the size of the sample to be draw from `population` without replacement
+  * `alpha`: the desired significance level (confidence level = $1-\alpha$):
+  * `n.boot`: the number of bootstrap sample (for Case 3 only)
+  
+The output of each function must be a numerical vector of size 2 containing the output of `aux`. The output must be named using the labels
+
+```{r}
+labels = c('cover','length')
+```
+
+```{r}
+aux = function(x){y=c('cover'=as.integer(as.logical(x[1]>=x[2] & x[1]<=x[3])), 'length'=x[3]-x[2])
+return(y)}
+
+core1 = function(population, n, alpha){l=c(mean(population), CI1(population[1:n], alpha))
+  return(c(aux(l)))}
+
+core2 = function(population, n, alpha){p=c(mean(population), CI2(population[1:n], alpha))
+  return(c(aux(p)))}
+
+core3 = function(population, n, alpha, n.boot){q=c(mean(population), CI3(population[1:n], alpha, n.boot))
+  return(c(aux(q)))}
+```
+
+Test your function by calling it in the test case below and report the output.
+
+```{r}
+set.seed(133) 
+population = rnorm(1000)
+n = 30
+alpha = 0.05
+n.boot = 100
+```
+
+```{r}
+core1(population, n, alpha)
+core2(population, n, alpha)
+core3(population, n, alpha, n.boot)
+```
+
+# Empirical Coverage and Average Length
+
+Recall that when we choose a confidence level of say $90\%$ for a CI we would like to have a procedure that in $90\%$ of the cases the CI *contains* the true parameter $\mu$, i.e, 
+$$
+P(\mu\in[LB, UB]) =0.9,
+$$
+where the probability refers to the random lower bound $LB$ and random upper bound $UB$ of the CI not to $\mu$ which, as a populational parameter, is a deterministic (fixed) quantity. 
+
+Also, for a given confidence level we would like to have the shortest CI as possible. Notice that the length of a CI, $L := UB-LB$, is a random quantity, therefore is common to look for the procedure that gives the shortest expected (mean) CI, in the sense that $\mathbb{E} L$.
+
+If we have the population we could estimate this quantity by drawning a large number of samples all of the same size, compute the CI for each of them, check whether the parameter belongs to it and calculate its length. Finally, we can average them out across all the samples. The average of the first quantity is called the **empirical coverage**, which is nothing more than an estimator for the parameter $P(\mu\in[LB, UB])$. The other one is the **average length** which is nothing more than an estimator for the parameter $\mathbb{E} L$.
+
+## Question 2: (10 pts)
+
+Using the functions `core1`, `core2`,`core3` write three functions called `empirical1`, `empirical2`,`empirical3` that calculates the  **empirical coverage** and the **average length**  for the sample average based on the average of `n.samples` samples of size `n` taken from the population.  The inputs of function must be:
+
+  * `population`: a numerical vector containing the population
+  * `n`: the size of the sample to be drawn from `population` without replacement
+  * `alpha`: the desired significance level (confidence level = $1-\alpha$):
+  * `n.boot`: the number of bootstrap sample (only applies to `empirical3` which uses `core3`)
+  * `n.samples`: the number of samples (of size $n$) to be drawn to compute **empirical coverage** and the **average length**
+  
+The output of each function  must be a numerical vector of size 2 containing the average of the output of the function `core` across the `n.samples`. *Hint: You might find it helpful to use `map_df` and `colMeans` functions.
+
+```{r}
+empirical1 = function(population, n, alpha, n.samples){c(mean(core1(population,n,
+      alpha)/n.samples), mean(sum(abs(core1(population,n, alpha)/n.samples))))}
+
+empirical2 = function(population, n, alpha, n.samples){c(mean(core2(population, 
+  n, alpha)/n.samples), mean(sum(abs(core1(population,n, alpha)/n.samples))))}
+
+empirical3 = function(population, n, alpha, n.samples, n.boot){c(mean(core3
+(population, n, alpha, n.boot)/n.samples), mean(sum(abs(core3(population, n, 
+alpha, n.boot)/n.samples))))}
+```
+
+Test your function by calling it in the test case below and report the output.
+
+```{r}
+set.seed(133) 
+population = rnorm(10000)
+n = 30
+alpha = 0.05
+n.boot = 100
+n.samples = 100
+```
+
+```{r}
+empirical1(population, n, alpha, n.samples)
+empirical2(population, n, alpha, n.samples)
+empirical3(population, n, alpha, n.samples, n.boot)
+```
+
+Empirical 1: [0.0006926344 0.0013852687]
+Empirical 1: [0.0006926344 0.0013852687]
+Empirical 3: [0, 0]
+
+## Question 3: The sample size effect for Case 1
+
+For this question, consider the following population
+
+```{r}
+set.seed(133)
+n.pop = 1e5
+pop0 = rchisq(n = n.pop, df = 5)
+```
+
+Use the following numbers for the other parameters
+
+```{r}
+alpha = 0.1
+n.samples = 10000
+```
+*Suggestion: While debugging your code, you may use smaller values for both `n.boot` and `n.samples` so that each run goes faster. Once you are happy with your code, use the numbers above for the final product. For reference, it took my laptop approximately 5 minutes to knit the solution to this project.*
+
+
+You will investigate the influence of the sample size $n$ in the empirical coverage of the CI for the sample mean based on Case 1. We will use the following sample sizes
+
+```{r}
+n = c(5,6,7,8,9,10,12,15,20,25,30,40,50,100)
+```
+
+### Part (a) (10 pts)
+
+Make a line plot of the empirical coverage of the CI1 versus sample sizes above. Include a horizontal line at empirical coverage = 0.9 for reference since you constructing  a 90% CI. Make sure that your plot is properly labeled and with a legend. *Hint: Use the function `empirical1` to generate the data
+
+```{r}
+#try this one more time before submitting
+ggplot(map_df(n, empirical1(pop0, n.pop, alpha, n.samples)), aes(x=map_df(n, 
+  empirical1(pop0, n.pop, alpha, n.samples)),y=n))+geom_line()+geom_point()+
+  geom_hline(yintercept=0.9)
+```
+
+### Part (b) (5 pts)
+
+Comparing the empirical coverage to the nominal coverage (90%), what you conclude in terms of the sample size influence. Do you agree with our "rule of thumb" saying that large sample is a something above 30?
+
+I conclude that the greater the sample size, the closer the empirical coverage 
+approaches the confidence interval.
+I agree with the rule of thumb.
+
+
+## Question 4: The population distribution effect for Case 2
+
+We now investigate the influence of the distribution of the sample, i.e. the distribution of $X_i$,  on the empirical coverage and average length of CI for the sample mean for each of the 3 methods. 
+
+For this question we are consider the following 5 populations: 
+
+```{r}
+pop1 = rgamma(n.pop, shape  = 0.1, rate = 1)
+pop2 = rgamma(n.pop, shape  = 0.5, rate = 1) 
+pop3 = rgamma(n.pop, shape  = 1, rate = 1)
+pop4 = rgamma(n.pop, shape  = 2, rate = 1)
+pop5 = rgamma(n.pop, shape  = 5, rate = 1)
+```
+
+###  Part (a) (10 pts)
+
+We will check how "far" the distribution of each of the populations above is from a normal distribution.
+
+For each of the 5 populations above:
+
+1.  Make the population histogram and density. Also superimpose the density of a normal distribution with the same mean and SD of population
+
+2.  Construct a QQ-plot with a Normal distribution as the reference.
+
+```{r}
+ggplot(data.frame(pop1), aes(x=pop1)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.2) + stat_function(fun=dnorm, 
+                                      args=list(mean=mean(pop1), sd=sd(pop1))) 
+
+qqnorm(pop1)
+
+ggplot(data.frame(pop2), aes(x=pop2)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.4) + stat_function(fun=dnorm, 
+                                        args=list(mean=mean(pop2), sd=sd(pop2))) 
+
+qqnorm(pop2)
+
+ggplot(data.frame(pop3), aes(x=pop3)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.5) + stat_function(fun=dnorm, 
+                                      args=list(mean=mean(pop3), sd=sd(pop3))) 
+
+qqnorm(pop3)
+
+ggplot(data.frame(pop4), aes(x=pop4)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.5) + stat_function(fun=dnorm, 
+                                      args=list(mean=mean(pop4), sd=sd(pop4)))
+
+qqnorm(pop4)
+
+ggplot(data.frame(pop5), aes(x=pop5)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.5) + stat_function(fun=dnorm, 
+                                      args=list(mean=mean(pop5), sd=sd(pop5))) 
+
+qqnorm(pop5)
+```
+
+### Part (b)  (10 pts)
+
+We are now going to use `empirical2` to investigate the empirical coverage of all 5 populations. 
+
+For each population draw `nsample = 10000` samples of size `n=10` and use  `empirical2` to compute the empirical coverage of CI constructed using Case 2 with confidence level `0.95` 
+
+```{r}
+empirical2 = function(population, n, alpha, n.samples){c(mean(core2(population, 
+  n, alpha)/n.samples), mean(sum(abs(core1(population,n, alpha)/n.samples))))}
+
+empirical2(pop1, 10, 0.05, 10000)
+empirical2(pop2, 10, 0.05, 10000)
+empirical2(pop3, 10, 0.05, 10000)
+empirical2(pop4, 10, 0.05, 10000)
+empirical2(pop5, 10, 0.05, 10000)
+```
+
+### Part (c) (5 pts)
+
+Based on parts (a) and (b), what do you conclude in terms of the departure from normality and empirical coverage of Case 2?
+
+The greater the number of events in your data sample (the greater the shape 
+value in our populations), the closer the graph approaches normality, and the 
+more the empirical coverage increases.
+
+## Question 5
+
+For this question, consider the following population
+
+```{r}
+set.seed(133)
+n.pop = 1e5
+pop6 = rchisq(n = n.pop, df = 5)
+```
+
+Use the following numbers for the other parameters
+
+```{r}
+n = c(5,6,7,8,9,10,12,15,20,25,30,40,50,100)
+alpha = 0.2
+n.samples = 1000
+n.boot = 1000
+```
+
+### Part (a) (15 pts)
+
+Make a line plot of the average length of the CI versus sample sizes above for each of the 3 cases. All the 3 lines must be in the same plot.
+
+
+```{r}
+
+#first plot attempt
+
+CI1 = function(data, alpha){print(c(mean(data/length(data))-quantile(data, 1-(alpha/2))*sd(data)/sqrt(length(data)), mean(data/length(data))+quantile(data, 1-(alpha/2))*sd(data)/sqrt(length(data))))}
+ 
+CI2 = function(data, alpha){print(c(mean(data/length(data))-quantile(data, 1-
+(alpha/2), df=length(data)-1)*sd(data)/sqrt(length(data)), mean(data/length
+(data))+quantile(data, 1-(alpha/2), df=length(data)-1)*sd(data)/sqrt(length
+                                                      (data))))}
+
+CI3 = function(data, alpha,n.boot){print(c(mean(data/length(data))-quantile(mean
+                                                          (head(data,n.boot))/n.boot-mean(data/length(data)), 1-(alpha/2)),mean(data/length(data))-quantile(mean(head(data,n.boot))/n.boot-
+                                                                                                                                                mean(data/length(data)), alpha/2)))}
+samplesize <- length(n)
+
+ggplot(pop6, aes(x=n))+
+  geom_line(aes(y=CI1(n, alpha)))+
+  geom_line(aes(y=CI2(n, alpha)))+
+  geom_line(aes(y=CI3(n, alpha, n.boot)))
+
+ggplot(data=data.frame(pop6), aes(x=sum(abs(CI1(n, alpha)))/samplesize), 
+      y=samplesize)+
+  geom_line(aes(y = sum(abs(CI2(n, alpha)))/samplesize))+geom_line(aes(y = 
+    sum(abs(CI3(n,alpha, n.boot)))/samplesize)) +geom_point()
+sum(abs(CI1(n, alpha)))
+
+
+#second plot attempt
+plotx<- samplesize
+ploty1<- sum(abs(CI1(n, alpha)))/samplesize
+ploty2<- sum(abs(CI2(n, alpha)))/samplesize
+ploty3<- sum(abs(CI3(n,alpha, n.boot)))/samplesize
+
+plot(plotx, ploty1) + lines(plotx, ploty2) + lines(plotx, ploty3)
+```
+
+### Part (b) (5 pts)
+
+Based on part (a), describe the general behavior of the CI length as the sample size increases? Is it what you expected based on the CI formulas for Case 1 and 2?
+
+CI length increases as the sample size increases. This shows in the formulas, as
+n, the number of samples, is being divided by the standard deviation, which is 
+under another value on the numerator. This means that as n increases, the total
+denominator gets smaller, and this results in a higher CI length.
+
+### Part (c) (5 pts)
+Based on what you have learned on part (a) and (b), answer the following question:
+
+Suppose you have a CI of length $3$ that was constructed based on Case 3 (Bootstrap) for a given sample size $n\geq 100$ of a given population. What do you expect the CI length to be if you were to increase the sample size by $50\%$?
+
+I would expect the CI length to be 4.5
+
+
+
+
+
+
+
+
+
+
+
